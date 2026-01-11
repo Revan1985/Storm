@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -112,38 +113,41 @@ namespace StormDesktop.Gui
 		}
 
 		private CancellationTokenSource? listenToMessageQueueCts = null;
+		private readonly Counter<int> performResultActionMeter;
 
 		public MainWindowViewModel(
 			ILogger<IMainWindowViewModel> logger,
 			IOptionsMonitor<StormOptions> stormOptionsMonitor,
-			UpdaterMessageQueue updaterMessageQueue)
+			UpdaterMessageQueue updaterMessageQueue,
+			IMeterFactory meterFactory)
 		{
 			ArgumentNullException.ThrowIfNull(logger);
 			ArgumentNullException.ThrowIfNull(stormOptionsMonitor);
 			ArgumentNullException.ThrowIfNull(updaterMessageQueue);
+			ArgumentNullException.ThrowIfNull(meterFactory);
 
 			this.logger = logger;
 			this.stormOptionsMonitor = stormOptionsMonitor;
 			this.updaterMessageQueue = updaterMessageQueue;
 
 			updaterMessageQueue.SetStreamSource(Streams);
+
+			Meter meter = meterFactory.Create(new MeterOptions("StormDesktop.MainWindowViewModel"));
+			performResultActionMeter = meter.CreateCounter<int>("times_performresultaction_ran");
 		}
 
 		public void StartListeningToMessageQueue()
 		{
-			if (listenToMessageQueueCts is null)
-			{
-				listenToMessageQueueCts = new CancellationTokenSource();
+			listenToMessageQueueCts ??= new CancellationTokenSource();
 
-				Task _ = Task
-					.Run(ListenToMessageQueueAsync, listenToMessageQueueCts.Token)
-					.ContinueWith(OnUpdaterMessageQueueStopped, TaskScheduler.Default);
+			Task _ = Task
+				.Run(ListenToMessageQueueAsync, listenToMessageQueueCts.Token)
+				.ContinueWith(OnUpdaterMessageQueueStopped, TaskContinuationOptions.None, TaskScheduler.Default);
 
-				logger.LogDebug("listening to update message queue");
-			}
+			logger.LogDebug("listening to update message queue");
 		}
 
-		private void OnUpdaterMessageQueueStopped(Task<ValueTask> task)
+		private void OnUpdaterMessageQueueStopped(Task task, object? arg2)
 		{
 			logger.LogError("updater message queue listener stopped (task status: '{TaskStatus}')", task.Status);
 
@@ -156,7 +160,7 @@ namespace StormDesktop.Gui
 			}
 		}
 
-		private async ValueTask ListenToMessageQueueAsync()
+		private async Task ListenToMessageQueueAsync()
 		{
 			while (listenToMessageQueueCts is not null
 				&& listenToMessageQueueCts.IsCancellationRequested == false)
@@ -168,6 +172,8 @@ namespace StormDesktop.Gui
 				while (updaterMessageQueue.ResultsQueue.TryDequeue(out object? result))
 				{
 					PerformResultAction(result);
+
+					performResultActionMeter.Add(1, new KeyValuePair<string, object?>("type", result.GetType().Name));
 				}
 
 				IEnumerable<IStream> liveAfterUpdate = Streams.Where(static s => s.Status == Status.Public);
