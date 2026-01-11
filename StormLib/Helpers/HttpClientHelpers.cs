@@ -14,7 +14,7 @@ namespace StormLib.Helpers
 		internal static void ConfigureDefaultHttpClient(HttpClient client)
 		{
 			client.DefaultRequestVersion = HttpVersion.Version20;
-			client.Timeout = TimeSpan.FromSeconds(60d);
+			client.Timeout = TimeSpan.FromSeconds(180d);
 		}
 
 		internal static ValueTask<HttpResponse> GetStringAsync(HttpClient client, Uri uri)
@@ -34,6 +34,7 @@ namespace StormLib.Helpers
 			{
 				RequestUri = uri
 			};
+			
 			configureRequestMessage?.Invoke(requestMessage);
 
 			response = await GetStringAsync(client, requestMessage, cancellationToken).ConfigureAwait(false);
