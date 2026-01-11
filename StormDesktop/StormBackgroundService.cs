@@ -88,8 +88,6 @@ namespace StormDesktop
 
 			while (continueLooping)
 			{
-				logger.LogDebug("loop started");
-
 				stoppingToken.ThrowIfCancellationRequested();
 
 				try
@@ -100,12 +98,20 @@ namespace StormDesktop
 
 						DateTimeOffset beginTime = DateTimeOffset.Now;
 
+						logger.LogDebug("update started");
+
 						int streamsUpdated = await RunUpdate(stoppingToken).ConfigureAwait(false);
+
+						logger.LogDebug("update ended");
 
 						UpdaterEnd(activity, beginTime, DateTimeOffset.Now, streamsUpdated);
 					}
 
+					logger.LogDebug("delay started");
+
 					await Task.Delay(optionsMonitor.CurrentValue.UpdateInterval, stoppingToken).ConfigureAwait(false);
+
+					logger.LogDebug("delay ended");
 				}
 #pragma warning disable CA1031 // Do not catch general exception types
 				catch (Exception ex)
@@ -135,8 +141,6 @@ namespace StormDesktop
 						}
 					}
 				}
-
-				logger.LogDebug("loop ended");
 			}
 
 			logger.LogInformation("stopped (end of executeasync reached)");
@@ -205,6 +209,8 @@ namespace StormDesktop
 					HandleUpdaterTypeMany(results);
 					break;
 				case UpdaterType.None:
+					logger.LogCritical("updater type is None: {UpdaterType}", this.GetType().Name);
+					break;
 				case UpdaterType.Unknown:
 				default:
 					logger.LogCritical("updater type was {UpdaterType}", updater.UpdaterType);

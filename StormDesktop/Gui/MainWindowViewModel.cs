@@ -137,20 +137,23 @@ namespace StormDesktop.Gui
 
 				Task _ = Task
 					.Run(ListenToMessageQueueAsync, listenToMessageQueueCts.Token)
-					.ContinueWith(
-						OnUpdaterMessageQueueStopped,
-						null,
-						CancellationToken.None,
-						TaskContinuationOptions.OnlyOnFaulted,
-						TaskScheduler.Current);
+					.ContinueWith(OnUpdaterMessageQueueStopped, TaskScheduler.Default);
 
 				logger.LogDebug("listening to update message queue");
 			}
 		}
 
-		private void OnUpdaterMessageQueueStopped(Task<ValueTask> _, object? __)
+		private void OnUpdaterMessageQueueStopped(Task<ValueTask> task)
 		{
-			logger.LogError("updater message queue listener faulted");
+			logger.LogError("updater message queue listener stopped (task status: '{TaskStatus}')", task.Status);
+
+			if (task.Exception is AggregateException aggEx)
+			{
+				foreach (Exception each in aggEx.InnerExceptions)
+				{
+					logger.LogError(each, "updater message queue exception: '{Type}' - '{Message}'", each.GetType().Name, each.Message);
+				}
+			}
 		}
 
 		private async ValueTask ListenToMessageQueueAsync()
@@ -181,7 +184,7 @@ namespace StormDesktop.Gui
 			logger.LogDebug("message queue listening outer loop stopped");
 		}
 
-		private static void PerformResultAction(object result)
+		private void PerformResultAction(object result)
 		{
 			switch (result)
 			{
@@ -204,6 +207,7 @@ namespace StormDesktop.Gui
 					youTubeResult.Action.Invoke(youTubeResult.Stream);
 					break;
 				default:
+					logger.LogWarning("attempted to perform result action on unknown type: {UnknownType}", result.GetType().Name);
 					break;
 			}
 		}

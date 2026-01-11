@@ -17,7 +17,7 @@ namespace StormDesktop
 		private readonly ILogger<UpdaterMessageQueue> logger;
 
 		public ConcurrentQueue<object> ResultsQueue { get; } = new ConcurrentQueue<object>();
-		public IReadOnlyCollection<IStream> StreamSource { get; set; } = new Collection<IStream>();
+		public IReadOnlyCollection<IStream> StreamSource { get; private set; } = new Collection<IStream>();
 
 		public UpdaterMessageQueue(ILogger<UpdaterMessageQueue> logger)
 		{
