@@ -142,7 +142,11 @@ namespace StormDesktop.Gui
 
 			Task _ = Task
 				.Run(ListenToMessageQueueAsync, listenToMessageQueueCts.Token)
-				.ContinueWith(OnUpdaterMessageQueueStopped, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+				.ContinueWith(
+					OnUpdaterMessageQueueStopped,
+					CancellationToken.None,
+					TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.OnlyOnCanceled,
+					TaskScheduler.Default);
 
 			logger.LogDebug("listening to update message queue");
 		}
