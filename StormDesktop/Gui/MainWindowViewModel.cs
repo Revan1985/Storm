@@ -172,8 +172,6 @@ namespace StormDesktop.Gui
 				while (updaterMessageQueue.ResultsQueue.TryDequeue(out object? result))
 				{
 					PerformResultAction(result);
-
-					performResultActionMeter.Add(1, new KeyValuePair<string, object?>("type", result.GetType().Name));
 				}
 
 				IEnumerable<IStream> liveAfterUpdate = Streams.Where(static s => s.Status == Status.Public);
@@ -187,11 +185,13 @@ namespace StormDesktop.Gui
 				await Task.Delay(TimeSpan.FromSeconds(3d)).ConfigureAwait(true);
 			}
 
-			logger.LogDebug("message queue listening outer loop stopped");
+			logger.LogError("message queue listening outer loop stopped");
 		}
 
 		private void PerformResultAction(object result)
 		{
+			performResultActionMeter.Add(1, new KeyValuePair<string, object?>("type", result.GetType().ToString()));
+
 			switch (result)
 			{
 				case Result<ChaturbateStream> chaturbateResult:
